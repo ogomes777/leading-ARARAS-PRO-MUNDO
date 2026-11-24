@@ -1,0 +1,368 @@
+.portal-section {
+  min-height: 0;
+  scroll-margin-top: 0;
+  background: #142a49;
+  color: #fff7e6;
+}
+.portal-stage {
+  --entry-floor: clamp(22px, max(min(8.2vw, 110px), 56.25vw - 100svh + 124px), 40%);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+.portal-stage .portal-cover,
+.portal-atmosphere,
+.portal-shade,
+.portal-leaves {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.portal-stage .portal-cover { object-fit: cover; }
+.portal-shade {
+  background: linear-gradient(to bottom, #1222151f, transparent 25%, transparent 57%, #0a142420 70%, #0a1424d4 100%);
+}
+.portal-vine {
+  position: absolute;
+  z-index: 1;
+  top: -5%;
+  width: 38%;
+}
+.portal-vine-left { left: -5%; }
+.portal-vine-right { right: -5%; transform: scaleX(-1); }
+.portal-vine img {
+  display: block;
+  width: 100%;
+  transform-origin: 15% 12%;
+  filter: drop-shadow(0 8px 11px #16200b55);
+  animation: portal-vine-sway 8s ease-in-out infinite alternate paused;
+}
+.portal-clouds {
+  position: absolute;
+  left: -18%;
+  width: 136%;
+  height: 42%;
+  background-repeat: no-repeat;
+  mask-image: linear-gradient(to right, #000 18%, transparent 36%, transparent 64%, #000 82%);
+  animation: portal-cloud-drift 29s ease-in-out infinite alternate paused;
+}
+.portal-clouds-far {
+  bottom: 1%;
+  opacity: .32;
+  background:
+    radial-gradient(ellipse 15% 18% at 17% 70%, #fff2cb8c 5%, #f1ba9166 42%, transparent 80%),
+    radial-gradient(ellipse 11% 11% at 9% 58%, #ffe8c59e 4%, #efbfa56b 38%, transparent 82%),
+    radial-gradient(ellipse 17% 18% at 82% 63%, #ffe6bfba 2%, #f0b09b57 43%, transparent 84%),
+    radial-gradient(ellipse 12% 13% at 94% 76%, #ffc38c91 1%, #d49a9373 46%, transparent 82%);
+  filter: blur(4px);
+}
+.portal-clouds-near {
+  bottom: -7%;
+  opacity: .36;
+  background:
+    radial-gradient(ellipse 15% 31% at 14% 64%, #fdd7b4bb 3%, #ceaba47a 32%, transparent 76%),
+    radial-gradient(ellipse 19% 34% at 24% 84%, #ffd3a1a6 1%, #aca8ba74 36%, transparent 82%),
+    radial-gradient(ellipse 16% 23% at 77% 67%, #ffe8c9a1 3%, #dbac936b 44%, transparent 81%),
+    radial-gradient(ellipse 19% 28% at 90% 86%, #efe3cda3 1%, #a9a6c493 38%, transparent 78%);
+  filter: blur(6px);
+  animation-duration: 23s;
+  animation-delay: -4s;
+  animation-direction: alternate-reverse;
+}
+
+.portal-leaves { z-index: 2; perspective: 700px; }
+.portal-leaves i {
+  --leaf-size: clamp(22px, 3.7vw, 62px);
+  --leaf-top: 19%;
+  --leaf-rise: -4vw;
+  --leaf-fall: 12vw;
+  --duration: 17s;
+  --delay: -3s;
+  --leaf-scale: 1;
+  position: absolute;
+  left: -12%;
+  top: var(--leaf-top);
+  width: var(--leaf-size);
+  aspect-ratio: 103 / 91;
+  pointer-events: none;
+  animation: portal-leaf-drift var(--duration) linear var(--delay) infinite paused;
+}
+.portal-leaves i::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url('assets/araras-portal.jpg') 22.6% 33.2% / 932% 593% no-repeat;
+  clip-path: polygon(30% 4%, 40% 9%, 47% 1%, 56% 10%, 67% 5%, 71% 17%, 84% 12%, 89% 23%, 96% 24%, 91% 36%, 100% 47%, 95% 56%, 97% 67%, 82% 63%, 83% 78%, 73% 73%, 69% 90%, 57% 81%, 49% 98%, 42% 87%, 34% 99%, 29% 87%, 21% 90%, 22% 75%, 7% 79%, 14% 63%, 5% 59%, 3% 43%, 13% 41%, 10% 31%, 19% 25%, 17% 17%, 29% 16%);
+  animation: portal-leaf-tumble var(--tumble, 4.4s) ease-in-out var(--delay) infinite alternate paused;
+}
+.portal-leaves i:nth-child(even)::before {
+  filter: sepia(.24) brightness(1.11);
+}
+.portal-leaves i:nth-child(2) {
+  --leaf-top: 47%;
+  --duration: 22s;
+  --delay: -14s;
+  --leaf-rise: -8vw;
+  --leaf-fall: 1vw;
+  --leaf-scale: .79;
+  --tumble: 5.7s;
+}
+.portal-leaves i:nth-child(3) {
+  --leaf-top: 64%;
+  --duration: 15s;
+  --delay: -9s;
+  --leaf-rise: -2vw;
+  --leaf-fall: 15vw;
+  --leaf-scale: 1.4;
+  --tumble: 3.5s;
+  filter: blur(.7px);
+}
+.portal-leaves i:nth-child(4) {
+  --leaf-top: 15%;
+  --duration: 27s;
+  --delay: -20s;
+  --leaf-fall: 6vw;
+  --leaf-scale: .57;
+  --tumble: 5.1s;
+}
+.portal-stage[data-in-view] :is(.portal-vine img, .portal-clouds, .portal-leaves i),
+.portal-stage[data-in-view] .portal-leaves i::before,
+.portal-stage[data-in-view] .portal-entry::before {
+  animation-play-state: running;
+}
+body:has(#flightDialog[open]) .portal-stage :is(.portal-vine img, .portal-clouds, .portal-leaves i),
+body:has(#flightDialog[open]) .portal-stage .portal-leaves i::before,
+body:has(#flightDialog[open]) .portal-stage .portal-entry::before {
+  animation-play-state: paused;
+}
+
+.portal-prompt {
+ position:absolute; left:12px; right:12px; bottom:clamp(22px,4vw,40px);
+ z-index:2; display:grid; justify-items:center; gap:0; margin:0; text-align:center;
+}
+.portal-entry-note {
+ margin:0; color:#fff4dce3; font:400 13px/1.5 Arial,sans-serif; letter-spacing:.01em;
+}
+.portal-entry {
+ position:relative; inset:auto; display:flex; align-items:center; justify-content:center;
+ gap:0; min-height:48px; padding:0 8px; border:0;
+ border-radius:0; background:transparent; color:#ffe3a0;
+ cursor:pointer; touch-action:manipulation;
+ transition:background .2s,border-color .2s,transform .2s;
+}
+.portal-entry::before { content:none; }
+.portal-entry-copy {
+ position:static; padding:0; font:400 clamp(25px,3.2vw,35px)/1.2 Allura,cursive; letter-spacing:0;
+ color:inherit; text-shadow:0 1px 7px #261506,0 0 17px #efb84660;
+}
+.portal-entry-copy::after { content:none; }
+.portal-entry:is(:hover,:focus-visible) {
+ background:transparent; color:#fff1cb; transform:translateY(-1px); opacity:1;
+}
+.portal-entry:is(:hover,:focus-visible) .portal-entry-copy { color:inherit; text-shadow:0 1px 6px #261506,0 0 22px #ffd17a99; }
+.portal-entry:focus-visible { outline:2px solid #ffe3a5; outline-offset:4px; }
+.portal-entry-chevron {
+ display:block; width:5px; height:5px; border:solid currentColor;
+ border-width:1px 1px 0 0; transform:rotate(45deg); transition:translate .2s;
+}
+.portal-entry:hover .portal-entry-chevron { translate:3px 0; }
+.portal-epilogue {
+  display: grid;
+  grid-template-columns: minmax(14px, 58px) auto minmax(14px, 58px);
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 3vw, 32px);
+  min-height: 0;
+  margin: 0;
+  padding: 20px 12px;
+  background: #f4eddb;
+  color: #916116;
+  text-align: center;
+  font: 400 clamp(25px, 3.1vw, 36px)/1.3 Italianno,cursive;
+  text-shadow:0 1px #fff6da,0 0 14px #dbaf4c35;
+}
+.portal-epilogue::before,
+.portal-epilogue::after {
+  content: "";
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #a88049);
+}
+.portal-epilogue::after { transform: scaleX(-1); }
+@keyframes portal-latch-glint {
+  from { opacity: .13; }
+  to { opacity: .64; }
+}
+@keyframes portal-leaf-tumble {
+  0% { transform: rotate(-29deg) rotateY(-48deg) rotateX(14deg); }
+  29% { transform: rotate(41deg) rotateY(17deg) rotateX(-25deg); }
+  73% { transform: rotate(95deg) rotateY(60deg) rotateX(34deg); }
+  100% { transform: rotate(143deg) rotateY(108deg) rotateX(-14deg); }
+}
+@keyframes portal-vine-sway {
+  from { transform: rotate(-1.3deg); }
+  to { transform: rotate(1.8deg) translateY(1.4%); }
+}
+@keyframes portal-cloud-drift {
+  from { transform: translateX(-7%) translateY(5%); }
+  to { transform: translateX(7%) translateY(-4%); }
+}
+@keyframes portal-leaf-drift {
+  0% { transform: translate3d(0, 0, 0) scale(var(--leaf-scale)); opacity: 0; }
+  13% { opacity: .8; }
+  34% { transform: translate3d(35vw, var(--leaf-rise), 0) scale(var(--leaf-scale)); }
+  59% { transform: translate3d(65vw, calc(var(--leaf-rise) + 5vw), 0) scale(var(--leaf-scale)); }
+  85% { opacity: .79; }
+  100% { transform: translate3d(126vw, var(--leaf-fall), 0) scale(var(--leaf-scale)); opacity: 0; }
+}
+#flightDialog .portal-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: #080f19;
+}
+#flightDialog .portal-intro[hidden] { display: none; }
+#flightDialog .portal-intro.dissolving {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease-out;
+}
+.portal-intro video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#flightCanvas {
+  background: #19304c url('assets/vine-horizon.jpg') center / cover no-repeat;
+  touch-action: none;
+}
+body:has(#flightDialog[open]) { overflow: hidden; }
+#vineScene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+#vineScene[hidden] { display: none; }
+#flightCanvas::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 51% 49%, transparent 38%, #1f150c55 100%);
+}
+.flight-bottom {
+  bottom: 0;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, #141019c9);
+  opacity: 1;
+  transition: opacity 300ms ease;
+}
+.showing-portal .flight-bottom { opacity: 0; }
+#flightDialog.showing-portal .flight-top { z-index: 5; }
+#skipPortalIntro {
+  position: absolute;
+  right: 5%;
+  bottom: max(26px, env(safe-area-inset-bottom));
+  padding: 12px 18px;
+  border: 1px solid #f7efdf88;
+  color: #f7efdf;
+  background: #101b2ae8;
+  font-size: .85rem;
+}
+#skipPortalIntro:focus-visible {
+  outline: 2px solid #e8b323;
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flight-bottom, #flightDialog .portal-intro.dissolving { transition: none; }
+  .portal-stage :is(.portal-vine img, .portal-clouds, .portal-leaves i) { animation: none; }
+  .portal-leaves, .portal-entry::before { display: none; }
+}
+@font-face { font-family:Allura; src:url('assets/allura.ttf') format('truetype'); font-weight:400; font-display:swap; }
+@font-face { font-family:Italianno; src:url('assets/italianno.ttf') format('truetype'); font-weight:400; font-display:swap; }
+.portal-stage { aspect-ratio:16 / 9; }
+.portal-stage .portal-cover { object-fit:contain; }
+.portal-vine,.portal-leaves,.portal-clouds { display:none; }
+#flightDialog .flight-bottom,#flightDialog .flight-top > img,#skipPortalIntro { display:none!important; }
+#flightDialog .portal-intro { background:#19304c url('assets/portal-opening-last.jpg') center / cover no-repeat; pointer-events:none; }
+#flightDialog .portal-intro.dissolving { transition:opacity 1250ms cubic-bezier(.23,.55,.4,1); }
+#portalIntroVideo { object-fit:cover; transform:scale(var(--video-zoom,1)); transition:transform 1.2s linear; }
+#flightDialog .flight-top { left:auto; right:max(15px,env(safe-area-inset-right)); top:max(15px,env(safe-area-inset-top)); z-index:6; }
+#flightDialog #closeFlight { font-size:11px; border:0; padding:12px; background:#142a4955; color:#fff0d0; border-radius:99px; }
+.flight-scroll { position:absolute; bottom:max(24px,env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); width:20px; height:32px; border:1px solid #ffe4abbb; border-radius:12px; pointer-events:none; z-index:5; }
+.flight-scroll i { position:absolute; top:7px; left:8px; width:2px; height:6px; background:#ffe4ab; border-radius:2px; animation:flight-scroll-hint 1.8s ease-in-out infinite; }
+.showing-portal .flight-scroll { opacity:0; }
+@keyframes flight-scroll-hint { 0%,100% { transform:translateY(0); opacity:.35; } 50% { transform:translateY(9px); opacity:1; } }
+@media(prefers-reduced-motion:reduce) { .flight-scroll i { animation:none; } .portal-entry,#portalIntroVideo { transition:none; } }
+.portal-prompt { bottom:29%; }
+.portal-entry { min-width:110px; min-height:55px; }
+.portal-entry-copy { font-size:clamp(28px,3.3vw,39px); }
+.portal-latch-hit { position:absolute; z-index:1; left:38%; top:39%; width:29%; height:24%; border:0; background:transparent; cursor:pointer; }
+.flight-story { position:absolute; z-index:5; bottom:12%; left:12%; right:12%; text-align:center; color:#fff4d7; font:400 clamp(17px,2.4vw,24px)/1.4 Allura,cursive; text-shadow:0 2px 12px #152416; pointer-events:none; transition:opacity .5s; }
+.flight-facade { position:absolute; inset:0; z-index:2; background:#adc3ce; opacity:0; transition:opacity 1.5s; }
+.flight-facade[hidden] { display:none; }
+.flight-facade.is-visible { opacity:1; }
+#facadeScene { width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+#facadeScene:active { cursor:grabbing; }
+#flightDialog[data-arrived] .flight-scroll { opacity:0; }
+@media(prefers-reduced-motion:reduce) { .flight-facade { transition:none; } }
+.portal-prompt { gap:9px; }
+.portal-invitation { margin:0; color:#ffe3a0; font:400 clamp(25px,3.2vw,35px)/1.25 Allura,cursive; text-shadow:0 1px 7px #261506,0 0 17px #efb84660; }
+.portal-entry { min-width:90px; min-height:40px; padding:0 19px; border:1px solid #f4deb17d; border-radius:4px; background:#17283b80; }
+.portal-entry-copy { font:500 12px/1 Arial,sans-serif; letter-spacing:.045em; text-shadow:none; }
+.portal-entry:is(:hover,:focus-visible) { background:#efe0bc; color:#263323; border-color:#efe0bc; }
+.portal-entry:is(:hover,:focus-visible) .portal-entry-copy { text-shadow:none; }
+#flightDialog #closeFlight { display:grid; place-items:center; width:40px; height:40px; min-height:40px; padding:10px; background:#142a4933; border-radius:4px; color:#fff0d0; }
+#closeFlight svg { width:20px; height:20px; }
+#flightDialog #closeFlight:hover { background:#142a4977; }
+#flightDialog #closeFlight:focus-visible { outline:1px solid #ffe3a0; outline-offset:3px; }
+/* The invitation sits on the lower centre of the ambient cover. */
+.portal-prompt {
+ bottom:clamp(9px,2vw,23px); left:12px; right:12px;
+ gap:3px; justify-items:center; text-align:center;
+}
+.portal-invitation {
+ font-size:clamp(23px,2.8vw,32px); line-height:1.12; text-wrap:balance;
+}
+.portal-entry {
+ position:relative; min-width:82px; min-height:40px; padding:0 12px;
+ border:0; border-radius:0; background:transparent; overflow:visible;
+}
+.portal-entry-copy {
+ font:400 clamp(23px,2.5vw,29px)/1.1 Allura,cursive;
+ letter-spacing:0; color:#ffe3a0; text-shadow:0 1px 6px #261506,0 0 14px #efb84660;
+}
+.portal-entry:is(:hover,:focus-visible) { background:transparent; color:#fff1cb; border:0; transform:none; }
+.portal-entry:is(:hover,:focus-visible) .portal-entry-copy { color:#fff1cb; text-shadow:0 1px 6px #261506,0 0 19px #ffd17a99; }
+.portal-guide {
+ position:absolute; top:50%; width:clamp(38px,8vw,96px); height:1px;
+ background:linear-gradient(90deg,transparent,#e7bf6cbf);
+ pointer-events:none;
+}
+.portal-guide-left { right:calc(100% + 5px); }
+.portal-guide-right { left:calc(100% + 5px); transform:scaleX(-1); }
+.portal-guide::after {
+ content:""; position:absolute; right:0; top:-2px; width:5px; height:5px;
+ border:solid #f8d897; border-width:1px 1px 0 0; transform:rotate(45deg);
+}
+.portal-guide::before {
+ content:""; position:absolute; top:-1px; left:10%; width:3px; height:3px;
+ background:#ffe8b1; border-radius:50%; box-shadow:0 0 7px #ffdc8f;
+ animation:portal-guide-particle 2.8s ease-in-out infinite;
+}
+@keyframes portal-guide-particle {
+ 0% { left:5%; opacity:0; }
+ 22% { opacity:.7; }
+ 80% { opacity:.9; }
+ 100% { left:92%; opacity:0; }
+}
+@media(prefers-reduced-motion:reduce) { .portal-guide::before { animation:none; left:50%; opacity:.5; } }
+.flight-top { gap:5px; }
+#flightDialog .flight-sound { display:grid; place-items:center; width:40px; height:40px; padding:10px; border:0; border-radius:4px; background:#142a4933; color:#fff0d0; }
+.flight-sound svg { width:19px; height:19px; }
+.flight-sound[aria-pressed="false"] { opacity:.5; }
