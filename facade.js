@@ -3,14 +3,51 @@ const THREE=window.THREE;
 const dialog=document.getElementById('flightDialog');
 const surface=dialog.querySelector('.flight-facade');
 const canvas=document.getElementById('facadeScene');
-let renderer,scene,camera,bird,frame=0,angle=0,elevation=.18,drag=null,arrivalTime=0;
+let renderer,scene,camera,bird,frame=0,angle=0,elevation=.18,drag=null,arrivalTime=0,approach=0,landingAt=null,landed=false,clock=0,lastW=0,lastH=0;
+const landButton=document.createElement('button');
+landButton.type='button';landButton.className='flight-land';landButton.textContent='Pousar';
+landButton.hidden=true;dialog.append(landButton);
+landButton.onclick=()=>{
+ if(approach<.985||landingAt!==null)return;
+ landingAt=performance.now();landButton.hidden=true;dialog.setAttribute('data-landing','');
+};
 function init(){
  renderer=new THREE.WebGLRenderer({canvas,antialias:true});
  renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));
  renderer.shadowMap.enabled=true;
  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  renderer.toneMapping=THREE.ACESFilmicToneMapping;
- scene=new THREE.Scene();scene.background=new THREE.Color('#a9c4d0');scene.fog=new THREE.FogExp2('#b5c7be',.018);
+ scene=new THREE.Scene();scene.fog=new THREE.FogExp2('#b1c7d4',.006);
+ const skyGeometry=new THREE.SphereGeometry(220,28,16);
+ const skyMaterial=new THREE.ShaderMaterial({
+  side:THREE.BackSide,depthWrite:false,
+  uniforms:{time:{value:0}},
+  vertexShader:`varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`
+   precision highp float;varying vec3 direction;uniform float time;
+   float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+   float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+1.),f.x),f.y);}
+   float fbm(vec2 p){return noise(p)*.5+noise(p*2.03)*.27+noise(p*4.1)*.15+noise(p*8.3)*.08;}
+   void main(){
+    vec3 ray=normalize(direction);
+    vec3 sky=mix(vec3(.84,.68,.47),vec3(.045,.25,.59),smoothstep(-.15,.28,ray.y));
+    vec3 sun=normalize(vec3(.16,.12,-1.));
+    float light=max(0.,dot(ray,sun));
+    sky+=vec3(1.,.76,.36)*(.18*pow(light,9.)+.35*pow(light,50.)+2.*smoothstep(.9993,.9998,light));
+    if(ray.y>.025){
+     vec2 q=ray.xz/max(ray.y,.025)*2.2+vec2(time*.013,0.);
+     float mass=fbm(q);
+     float cloud=smoothstep(.49,.72,mass);
+     float shade=clamp(.61+(mass-fbm(q+vec2(.1,.16)))*2.5,0.,1.);
+     sky=mix(sky,mix(vec3(.53,.65,.8),vec3(1.,.96,.85),shade),cloud*.86);
+    }
+    gl_FragColor=vec4(sky,1.);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+   }`
+ });
+ const dome=new THREE.Mesh(skyGeometry,skyMaterial);dome.frustumCulled=false;scene.add(dome);
+ scene.userData.sky=dome;
  camera=new THREE.PerspectiveCamera(43,1,.1,250);
  scene.add(new THREE.HemisphereLight('#e8f2ff','#68794e',2.1));
  const sun=new THREE.DirectionalLight('#ffe0aa',3);sun.position.set(-7,18,14);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-18;sun.shadow.camera.right=18;sun.shadow.camera.top=15;sun.shadow.camera.bottom=-15;scene.add(sun);
@@ -61,40 +98,81 @@ function init(){
   if(Math.abs(x)<10&&z>-12)continue;
   const h=5+random()*9;
   box(.3,h,.3,x,h/2,z,materials.wood);
-  const crown=new THREE.Mesh(foliage,materials.green);crown.scale.set(2+random()*2,2.6,2+random()*2);crown.position.set(x,h,z);crown.castShadow=true;scene.add(crown);
+  for(let layer=0;layer<6;layer++){
+   const crown=new THREE.Mesh(foliage,materials.green);
+   const a=layer*2.4+i, spread=layer===0?0:1.5;
+   crown.scale.set(1.5+random()*1.5,1.6+random()*1.4,1.5+random()*1.5);
+   crown.position.set(x+Math.cos(a)*spread,h-1.1+Math.sin(layer)*1.7,z+Math.sin(a)*spread);
+   crown.rotation.set(random(),random(),random());crown.castShadow=true;scene.add(crown);
+  }
  }
- bird=new THREE.Group();
- const blue=new THREE.MeshStandardMaterial({color:'#1676b7',roughness:.65}),yellow=new THREE.MeshStandardMaterial({color:'#efbe26',roughness:.8});
- function ellipsoid(x,y,z,sx,sy,sz,mat){
-  const mesh=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),mat);mesh.position.set(x,y,z);mesh.scale.set(sx,sy,sz);mesh.castShadow=true;bird.add(mesh);return mesh;
- }
- ellipsoid(0,0,0,.13,.27,.15,blue);ellipsoid(0,.03,.09,.10,.20,.08,yellow);ellipsoid(0,.28,0,.14,.15,.14,blue);
- ellipsoid(0,.29,.17,.07,.07,.12,materials.dark);
- for(const side of [-1,1]){ellipsoid(side*.13,.31,.04,.045,.055,.055,signMat);ellipsoid(side*.165,.32,.07,.017,.023,.019,materials.dark);}
- const tail=ellipsoid(0,-.4,-.05,.07,.34,.045,blue);tail.rotation.x=-.25;
- bird.position.set(-4.3,6.15,.7);scene.add(bird);
+ bird=window.createArarasArrivalBird(THREE);
+ bird.rotation.order='YXZ';bird.rotation.y=Math.PI;scene.add(bird);
 }
+
 function draw(now){
  frame=0;if(surface.hidden||!dialog.open)return;
  const w=canvas.clientWidth,h=canvas.clientHeight;
- renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
- const settle=Math.min(1,(now-arrivalTime)/2200),ease=settle*settle*(3-2*settle);
- const distance=(innerWidth<600?26:19)+(1-ease)*16;
- camera.position.set(Math.sin(angle)*distance,4+elevation*distance+(1-ease)*8,Math.cos(angle)*distance);
- camera.lookAt(0,2.7,0);
- bird.position.y=6.15+(1-ease)*5;
- renderer.render(scene,camera);frame=requestAnimationFrame(draw);
+ if(!w||!h)return;
+ if(w!==lastW||h!==lastH){
+  lastW=w;lastH=h;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
+ }
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const landing=landingAt===null?0:Math.min(1,(now-landingAt)/3200);
+ const settling=landing*landing*(3-2*landing);
+ const eased=approach*approach*(3-2*approach);
+ const near=w<600?27:19;
+ const distance=THREE.MathUtils.lerp(122,near,eased);
+ const orbit=landing>=1?angle:0;
+ const altitude=THREE.MathUtils.lerp(36,7.4,eased)+(landing>=1?elevation*3:0);
+ camera.position.set(Math.sin(orbit)*distance,altitude,Math.cos(orbit)*distance);
+ camera.lookAt(0,THREE.MathUtils.lerp(5.4,3.7,eased),0);
+ const lead=new THREE.Vector3(0,5.4,0).sub(camera.position).normalize();
+ const flying=camera.position.clone().addScaledVector(lead,w<600?8.6:5.8);
+ flying.y-=.35;
+ flying.x+=.22*Math.sin(clock*1.2)*(1-settling);
+ flying.y+=.10*Math.sin(clock*3.1)*(1-settling);
+ const perch=new THREE.Vector3(-4.3,6.06,.73);
+ bird.position.copy(flying).lerp(perch,settling);
+ bird.rotation.set(-.1-settling*1.19,Math.PI+.025*Math.sin(clock)*(1-settling),.025*Math.sin(clock*1.2)*(1-settling));
+ bird.userData.animate(reduced?0:clock,settling);
+ if(landing===1&&!landed){landed=true;dialog.setAttribute('data-perched','');}
+ const dome=scene.userData.sky;dome.position.copy(camera.position);dome.material.uniforms.time.value=clock;
+ renderer.render(scene,camera);
+ frame=requestAnimationFrame(draw);
 }
+window.prepareArarasFacade=()=>{
+ if(renderer)return;
+ try{
+  init();renderer.setSize(16,16,false);
+  camera.position.set(0,36,122);camera.lookAt(0,5,0);renderer.compile(scene,camera);
+ }catch(error){console.warn('Araras: chegada indisponível',error);}
+};
+window.updateArarasApproach=(progress,elapsed)=>{
+ clock=elapsed;
+ if(progress<84){
+  if(!surface.hidden)window.showArarasFacade(false);
+  return;
+ }
+ approach=Math.max(0,Math.min(1,(progress-84)/16));
+ landButton.hidden=approach<.985||landingAt!==null;
+ if(surface.hidden)window.showArarasFacade(true);
+};
 window.showArarasFacade=show=>{
  surface.hidden=!show;
  if(show){
-  if(!renderer){try{init();}catch(error){surface.hidden=true;console.warn(error);return;}}
+  window.prepareArarasFacade();
+  if(!renderer){surface.hidden=true;return;}
   dialog.setAttribute('data-arrived','');
-  arrivalTime=performance.now();requestAnimationFrame(()=>surface.classList.add('is-visible'));
+  requestAnimationFrame(()=>surface.classList.add('is-visible'));
   if(!frame)frame=requestAnimationFrame(draw);
- }else{surface.classList.remove('is-visible');dialog.removeAttribute('data-arrived');cancelAnimationFrame(frame);frame=0;}
+ }else{
+  surface.classList.remove('is-visible');dialog.removeAttribute('data-arrived');
+  dialog.removeAttribute('data-perched');dialog.removeAttribute('data-landing');
+  cancelAnimationFrame(frame);frame=0;landingAt=null;landed=false;landButton.hidden=true;angle=0;elevation=.18;
+ }
 };
-canvas.addEventListener('pointerdown',e=>{drag={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointerdown',e=>{if(!landed)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener('pointermove',e=>{if(e.pointerId!==drag?.id)return;angle-=(e.clientX-drag.x)*.006;elevation=Math.max(-.02,Math.min(.7,elevation+(e.clientY-drag.y)*.003));drag.x=e.clientX;drag.y=e.clientY;});
 canvas.addEventListener('lostpointercapture',()=>{drag=null;});
 dialog.addEventListener('close',()=>window.showArarasFacade(false));

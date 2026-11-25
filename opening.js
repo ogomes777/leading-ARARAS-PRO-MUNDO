@@ -1,55 +1,108 @@
 (()=>{
-const journey = document.querySelector('.opening-journey');
-const stage = journey.querySelector('.opening-stage');
-const header = document.querySelector('#experience > header');
-const cards = [...document.querySelectorAll('.card')];
-const indicator = document.querySelector('.progress span');
-const caption = document.querySelector('.opening-title em');
-const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-let frame = 0;
-let headerHeight = 0;
-
-function render() {
-  frame = 0;
-  const top = header.offsetHeight;
-  if (top !== headerHeight) {
-    headerHeight = top;
-    document.documentElement.style.setProperty('--header-offset', `${top}px`);
-  }
-  const travel = Math.max(1, journey.offsetHeight - stage.offsetHeight);
-  const distance = headerHeight - journey.getBoundingClientRect().top;
-  const progress = Math.max(0, Math.min(1, distance / travel));
-  const position = progress * (cards.length - 1);
-  const spacing = Math.min(stage.clientWidth * .29, 300);
-  const focus = Math.round(position);
-  const translations = {
-    en: ['Our home.', 'Made to share.', 'A toast.', 'Art on the street.', 'Our corner of Araxá.'],
-    es: ['Nuestra casa.', 'Para compartir.', 'Un brindis.', 'Arte en la calle.', 'Nuestro rincón de Araxá.']
+ const journey=document.querySelector('.opening-journey');
+ const stage=journey.querySelector('.opening-stage');
+ const deck=stage.querySelector('.deck');
+ const header=document.querySelector('#experience > header');
+ const cards=[...deck.querySelectorAll('.card')];
+ const exit=stage.querySelector('.opening-continue');
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+ const angles=[-7,5,-4,8,-5],heights=[-9,14,-15,10,-4];
+ let desired=0,position=0,frame=0,last=0,drag=null,inView=false;
+ function labels(){
+  const lang=document.documentElement.lang;
+  const translations={
+   en:['Our home.','Made to share.','A toast.','Art on the street.','Our corner of Araxá.'],
+   es:['Nuestra casa.','Para compartir.','Un brindis.','Arte en la calle.','Nuestro rincón de Araxá.']
   };
-  const title = translations[document.documentElement.lang]?.[focus] ?? cards[focus].dataset.title;
-  if (caption.textContent !== title) caption.textContent = title;
-
-  cards.forEach((card, index) => {
-    const distance = index - (reduced.matches ? focus : position);
-    const offset = Math.max(-1.55, Math.min(1.55, distance));
-    const depth = Math.abs(offset);
-    card.style.transform = `translate(-50%, -50%) translate(${offset * spacing}px, ${depth * 24}px) rotate(${offset * 11}deg) scale(${1 - depth * .18})`;
-    card.style.opacity = String(depth < 1.55 ? Math.max(0, 1 - Math.abs(distance) * .64) : 0);
-    card.style.zIndex = String(100 - Math.round(depth * 50));
-    card.setAttribute('aria-hidden', String(index !== focus));
+  cards.forEach((card,index)=>{
+   const caption=card.querySelector('figcaption'),text=translations[lang]?.[index]??card.dataset.title;
+   caption.setAttribute('aria-label',text);caption.textContent='';
+   Array.from(text).forEach((letter,i)=>{
+    const span=document.createElement('span');span.setAttribute('aria-hidden','true');span.textContent=letter===' '?' ':letter;
+    span.style.setProperty('--letter-delay',i*.018+'s');caption.append(span);
+   });
   });
-  indicator.style.transform = `scaleX(${progress})`;
-}
-function scheduleRender() {
-  if (!frame) frame = requestAnimationFrame(render);
-}
-addEventListener('scroll', scheduleRender, { passive: true });
-addEventListener('resize', scheduleRender);
-reduced.addEventListener('change', scheduleRender);
-render();
-if ('ResizeObserver' in window) new ResizeObserver(scheduleRender).observe(header);
-
-new MutationObserver(scheduleRender).observe(document.documentElement,{attributes:true,attributeFilter:["lang"]});
+  exit.setAttribute('aria-label',lang==='en'?'Continue to the next section':lang==='es'?'Continuar a la siguiente sección':'Continuar para a próxima seção');
+ }
+ function layout(){
+  document.documentElement.style.setProperty('--header-offset',header.offsetHeight+'px');
+  const rect=stage.getBoundingClientRect();
+  const visibleTop=Math.max(rect.top,header.offsetHeight);
+  const visibleHeight=Math.max(100,Math.min(rect.bottom,innerHeight)-visibleTop);
+  stage.style.setProperty('--opening-visible-height',visibleHeight+'px');
+  stage.style.setProperty('--opening-center-y',(Math.max(0,visibleTop-rect.top)+visibleHeight*.45)+'px');
+  const hiddenBottom=Math.max(0,rect.bottom-innerHeight);
+  exit.style.bottom=(20+hiddenBottom)+'px';request();
+ }
+ function render(now){
+  frame=0;
+  const dt=last?Math.min((now-last)/1000,.05):.016;last=now;
+  position=reduced.matches?desired:position+(desired-position)*(1-Math.exp(-dt*8));
+  const width=cards[0].offsetWidth,spacing=width+Math.max(48,width*.25);
+  cards.forEach((card,index)=>{
+   const offset=((index-position+cards.length/2)%cards.length+cards.length)%cards.length-cards.length/2;
+   const depth=Math.abs(offset),active=index===((Math.round(position)%cards.length+cards.length)%cards.length);
+   card.style.transform='translate(-50%,-50%) translate('+offset*spacing+'px,'+(heights[index]+depth*12)+'px) rotate('+(angles[index]+offset*4)+'deg) scale('+(1-Math.min(depth,2)*.08)+')';
+   card.style.opacity=String(Math.max(0,Math.min(1,(cards.length/2-depth)/.35)));
+   card.style.zIndex=String(10-Math.round(depth*3));
+   card.setAttribute('aria-hidden',String(!active));
+   card.style.setProperty('--word-opacity',active?'1':'0');
+   card.style.setProperty('--word-y',active?'0px':'8px');
+  });
+  if(inView&&Math.abs(desired-position)>.001)frame=requestAnimationFrame(render);
+  else last=0;
+ }
+ function request(){if(!frame)frame=requestAnimationFrame(render);}
+ function move(delta){
+  desired+=delta;
+  if(Math.abs(desired)>1000){
+   const cycles=Math.trunc(desired/cards.length)*cards.length;
+   desired-=cycles;position-=cycles;
+  }
+  request();
+ }
+ stage.addEventListener('wheel',event=>{
+  if(document.querySelector('dialog[open]'))return;
+  event.preventDefault();
+  const top=journey.getBoundingClientRect().top;
+  if(top>header.offsetHeight+2)window.scrollTo({top:scrollY+top-header.offsetHeight,behavior:'instant'});
+  const factor=event.deltaMode===1?16:event.deltaMode===2?400:1;
+  const delta=Math.abs(event.deltaX)>Math.abs(event.deltaY)?event.deltaX:event.deltaY;
+  move(Math.max(-180,Math.min(180,delta*factor))*.0035);
+ },{passive:false});
+ deck.onpointerdown=event=>{
+  drag={id:event.pointerId,x:event.clientX,y:event.clientY};
+  deck.setPointerCapture(event.pointerId);
+ };
+ deck.onpointermove=event=>{
+  if(drag?.id!==event.pointerId)return;
+  const x=event.clientX-drag.x,y=event.clientY-drag.y;
+  move(-(Math.abs(x)>Math.abs(y)?x:y)/Math.max(180,deck.clientWidth*.46));
+  drag.x=event.clientX;drag.y=event.clientY;
+ };
+ deck.onpointerup=deck.onpointercancel=()=>{
+  drag=null;desired=Math.round(desired);request();
+ };
+ stage.addEventListener('keydown',event=>{
+  if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(event.key))return;
+  event.preventDefault();move(['ArrowDown','ArrowRight'].includes(event.key)?1:-1);
+ });
+ exit.onclick=event=>{
+  event.preventDefault();
+  const next=document.getElementById('voo');
+  window.scrollTo({top:scrollY+next.getBoundingClientRect().top-header.offsetHeight,behavior:reduced.matches?'instant':'smooth'});
+  document.getElementById('portalTrigger').focus({preventScroll:true});
+ };
+ addEventListener('scroll',layout,{passive:true});
+ addEventListener('resize',()=>{layout();request();});
+ new ResizeObserver(()=>{layout();request();}).observe(header);
+ new IntersectionObserver(([entry])=>{
+  inView=entry.isIntersecting;stage.classList.toggle('is-in-view',inView);
+  if(inView)request();else{cancelAnimationFrame(frame);frame=0;last=0;}
+ }).observe(stage);
+ new MutationObserver(()=>{labels();request();}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+ reduced.addEventListener('change',request);
+ labels();layout();request();
 })();
 
 (() => {
@@ -214,3 +267,6 @@ new MutationObserver(scheduleRender).observe(document.documentElement,{attribute
   motion.addEventListener('change', redraw);
   select(0, false);
 })();
+
+
+

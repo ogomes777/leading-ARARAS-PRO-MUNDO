@@ -366,3 +366,17 @@ body:has(#flightDialog[open]) { overflow: hidden; }
 #flightDialog .flight-sound { display:grid; place-items:center; width:40px; height:40px; padding:10px; border:0; border-radius:4px; background:#142a4933; color:#fff0d0; }
 .flight-sound svg { width:19px; height:19px; }
 .flight-sound[aria-pressed="false"] { opacity:.5; }
+
+.flight-land {position:absolute;z-index:6;bottom:max(35px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);padding:10px 27px;border:1px solid #ffe3a58c;border-radius:999px;background:#251a119c;color:#ffedc4;font:italic 22px Georgia,serif;backdrop-filter:blur(12px);cursor:pointer;}
+.flight-land:hover {background:#ffe0a5;color:#35240d;}
+.flight-land:focus-visible {outline:2px solid #fff1ce;outline-offset:5px;}
+.flight-land[hidden] {display:none;}
+#flightDialog[data-perched] .flight-facade canvas {cursor:grab;}
+#flightDialog[data-perched] .flight-facade canvas:active {cursor:grabbing;}
+
+/* Keep the full-resolution still visible until a video frame has been presented. */
+.portal-stage #portalAmbient {opacity:0;}
+.portal-stage[data-cover-ready] #portalAmbient {opacity:1;}
+.portal-opening-poster {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;}
+.portal-intro #portalIntroVideo {position:relative;opacity:0;}
+.portal-intro[data-frame-ready] #portalIntroVideo {opacity:1;}

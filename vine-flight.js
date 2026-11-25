@@ -17,11 +17,43 @@
       vDistance = gl_Position.w;
     }`;
   const fragment = `
-    precision mediump float;
+    precision highp float;
     varying vec3 vNormal, vColor, vWorld;
     varying float vDistance;
     uniform vec3 uEye;
-    uniform float uBird, uShine, uWood;
+    uniform float uBird, uShine, uWood,uTime;
+    float hash(vec2 p) {
+      vec3 q = fract(vec3(p.xyx) * .1031);
+      q += dot(q, q.yzx + 33.33);
+      return fract((q.x + q.y) * q.z);
+    }
+    float noise(vec2 p) {
+      vec2 i = floor(p), f = fract(p);
+      vec2 u = f*f*(3.-2.*f);
+      return mix(mix(hash(i), hash(i+vec2(1,0)), u.x), mix(hash(i+vec2(0,1)), hash(i+1.), u.x), u.y);
+    }
+    float fbm(vec2 p) {
+      return noise(p)*.49 + noise(p*2.04)*.25 + noise(p*4.17)*.14 + noise(p*8.29)*.08 + noise(p*16.31)*.04;
+    }
+    float noise3(vec3 p) {
+      vec3 i=floor(p),f=fract(p);
+      f=f*f*(3.-2.*f);
+      vec2 a=i.xy+vec2(37.,19.)*i.z;
+      return mix(
+        mix(mix(hash(a),hash(a+vec2(1.,0.)),f.x),mix(hash(a+vec2(0.,1.)),hash(a+1.),f.x),f.y),
+        mix(mix(hash(a+vec2(37.,19.)),hash(a+vec2(38.,19.)),f.x),mix(hash(a+vec2(37.,20.)),hash(a+vec2(38.,20.)),f.x),f.y),
+        f.z);
+    }
+    float cloudShape(vec3 p) {
+      vec3 q=p*vec3(.14,.27,.14)+vec3(uTime*.075,0.,uTime*.035);
+      float mass=noise3(q)*.57+noise3(q*2.03)*.28+noise3(q*4.1)*.15;
+      float grouping=noise3(q*.42+vec3(7.,2.,3.));
+      float center=-4.3+2.5*(noise3(vec3(p.x*.08,3.2,p.z*.08))-.5);
+      float envelope=abs(p.y-center)*.09;
+      float top=1.-smoothstep(-1.75,-.55,p.y);
+      return smoothstep(.38,.64,mass-envelope-max(0.,.49-grouping)*.47)*top;
+    }
+
     float grain(vec3 p) {
       return sin(p.x * 43. + sin(p.y * 31.) + p.z * 71.) * sin(p.x * 81. - p.y * 64. + p.z * 35.);
     }
@@ -34,18 +66,39 @@
       float rim = pow(1. - abs(dot(n, view)), 3.) * max(0., dot(n, sun));
       float sheen = pow(max(dot(n, normalize(sun + view)), 0.), 17.);
       vec3 warm = vec3(1., .78, .45);
-      vec3 light = mix(vec3(.72, .76, .52), vec3(.83, .92, 1.), uBird);
+      vec3 light = mix(vec3(.72, .76, .52), vec3(.60, .72, .86), uBird);
       float rings=sin(vWorld.z*42.+sin(vWorld.y*11.)*2.5+sin(vWorld.x*9.)*1.7);
       float fibers=sin(vWorld.z*180.+vWorld.x*39.)*.07;
       float texture = 1. + (rings*.15+fibers+grain(vWorld)*.08)*uWood;
       n=normalize(n+vec3(rings*.11,fibers*.8,0.)*uWood);
-      vec3 lit = vColor * (light + frontLight * warm * .92) * texture
+      vec3 lit = vColor * (light + frontLight * warm * mix(.92,.68,uBird)) * texture
         + warm * (rim * mix(.38, .12, uBird) + sheen * uShine);
       float fog = smoothstep(24., 155., vDistance) * .90 * (1. - uBird);
       vec3 horizon = mix(vec3(.83, .69, .50), vec3(.73, .78, .81), smoothstep(-3., 6., vWorld.y));
       vec3 color = mix(lit, horizon, fog);
-      float cloud = 1. - smoothstep(-4.35, -2.85, vWorld.y + .38 * sin(vWorld.x*2. + vWorld.z*.6));
-      color = mix(color, vec3(.70,.67,.62), cloud * .18 * (1.-uBird));
+      if(uBird < .5 && vWorld.y < -.55){
+        vec3 travel=vWorld-uEye;
+        float distanceToSurface=length(travel);
+        vec3 ray=travel/distanceToSurface;
+        float begin=max(0.,(-.55-uEye.y)/min(-.001,ray.y));
+        float finish=min(distanceToSurface,begin+90.);
+        float stride=max(0.,finish-begin)/14.;
+        float opacity=0.;
+        vec3 vapor=vec3(0.);
+        for(int i=0;i<14;i++){
+          vec3 point=uEye+ray*(begin+(float(i)+.5)*stride);
+          float density=cloudShape(point);
+          float lighting=clamp(.42+(density-cloudShape(point+vec3(.22,.7,.48)))*1.7,0.,1.);
+          vec3 mist=mix(vec3(.43,.44,.51),vec3(1.,.86,.65),lighting);
+          float alpha=(1.-exp(-density*stride*.58))*(1.-opacity);
+          vapor+=mist*alpha;opacity+=alpha;
+        }
+        color=color*(1.-opacity)+vapor;
+      }
+      if(uBird>.5){
+        float barb=sin(vWorld.z*310.+sin(vWorld.x*120.)*1.8);
+        color*=.985+.015*barb;
+      }
       gl_FragColor = vec4(color, 1.);
     }`;
   const skyVertex = `
@@ -80,21 +133,24 @@
         f.z);
     }
     float cloudShape(vec3 p) {
-      vec3 q=p*vec3(.16,.38,.16)+vec3(uTime*.10,0.,0.);
-      float mass=noise3(q)*.56+noise3(q*2.03)*.27+noise3(q*4.1)*.12+noise3(q*8.3)*.05;
-      float height=smoothstep(-6.5,-4.9,p.y)*(1.-smoothstep(-3.7,-1.4,p.y));
-      return smoothstep(.43,.66,mass)*height;
+      vec3 q=p*vec3(.14,.27,.14)+vec3(uTime*.075,0.,uTime*.035);
+      float mass=noise3(q)*.57+noise3(q*2.03)*.28+noise3(q*4.1)*.15;
+      float grouping=noise3(q*.42+vec3(7.,2.,3.));
+      float center=-4.3+2.5*(noise3(vec3(p.x*.08,3.2,p.z*.08))-.5);
+      float envelope=abs(p.y-center)*.09;
+      float top=1.-smoothstep(-1.75,-.55,p.y);
+      return smoothstep(.38,.64,mass-envelope-max(0.,.49-grouping)*.47)*top;
     }
     void main() {
       vec2 p = vec2(vScreen.x*uAspect, vScreen.y);
       vec3 ray = normalize(vec3(p*uFov - vec2(-uEye.x * .026, -.10), 1.));
       float d = length(ray.xy);
-      float above = smoothstep(-.06, .34, ray.y);
-      vec3 sky = mix(vec3(.91, .57, .35), vec3(.16, .36, .59), above);
+      float above = smoothstep(-.08, .28, ray.y);
+      vec3 sky = mix(vec3(.91, .57, .35), vec3(.065, .28, .62), above);
       sky = mix(sky, vec3(1., .75, .42), exp(-d * 4.1) * .86);
       if (ray.y < -.018) {
-        float begin = (-2.1 - uEye.y) / ray.y;
-        float end = (-6.5 - uEye.y) / ray.y;
+        float begin = (-.55 - uEye.y) / ray.y;
+        float end = min(begin+130.,(-8.0 - uEye.y) / ray.y);
         float stride = (end-begin) / 28.;
         vec4 cloud = vec4(0.);
         for (int i = 0; i < 28; i++) {
@@ -114,6 +170,25 @@
         float distanceFade = 1. - smoothstep(40.,128.,begin);
         sky = mix(sky, cloud.rgb + sky*(1.-cloud.a), distanceFade);
       }
+      // High clouds occupy independent heights and move in perspective.
+      if(ray.y>.018){
+        vec4 highCloud=vec4(0.);
+        for(int layer=0;layer<3;layer++){
+          float height=13.+float(layer)*7.;
+          float distance=(height-uEye.y)/ray.y;
+          vec3 point=uEye+ray*distance;
+          vec2 drift=point.xz*.023+vec2(uTime*.003,float(layer)*9.7);
+          float billow=fbm(drift);
+          float edge=smoothstep(.51,.72,billow);
+          float inner=smoothstep(.54,.73,fbm(drift+vec2(.08,.16)));
+          vec3 tone=mix(vec3(.60,.69,.81),vec3(1.,.96,.87),clamp(.35+(billow-inner)*3.,0.,1.));
+          float alpha=edge*.64*(1.-highCloud.a)*(1.-smoothstep(450.,1300.,distance));
+          highCloud+=vec4(tone*alpha,alpha);
+        }
+        sky=sky*(1.-highCloud.a)+highCloud.rgb;
+      }
+      float shafts=pow(max(0.,sin(atan(ray.y,ray.x)*21.+fbm(ray.xy*3.)*.5)),13.);
+      sky+=vec3(1.,.77,.39)*shafts*exp(-d*6.)*.105;
       float forest = smoothstep(125.,155.,uEye.z);
       if (ray.y < -.035) {
         float groundDistance = (-17.-uEye.y)/ray.y;
@@ -243,8 +318,8 @@
       const bend = between(-.7,.7);
       for (let strand = 0; strand < 10; strand++) {
         const offset = between(-.24,.26), phase = between(0,6.2);
-        const points = Array.from({length:49}, (_, i) => {
-          const a = -1.015 + i*.1078;
+        const points = Array.from({length:65}, (_, i) => {
+          const a = -Math.PI / 2 + i * Math.PI * 2 / 64;
           const coil = a*7.7 + phase;
           return arch(a, z + Math.sin(coil)*.28 + Math.cos(a*2)*bend + offset, offset + Math.cos(coil)*.23);
         });
@@ -292,16 +367,28 @@
     return sections;
   }
 
+
   function feather(mesh, base, tip, width, color) {
     const axis = sub(tip, base);
-    const side = scale(unit(cross(axis, [0,1,0])), width);
-    const mid = add(base, scale(axis, .55));
-    const leading = add(mid, side), trailing = sub(mid, scale(side, .7));
-    const ridge = add(mid,[0,.043,0]);
-    triangle(mesh, base, leading, ridge, scale(color, 1.13));
-    triangle(mesh, leading, tip, ridge, scale(color, 1.03));
-    triangle(mesh, base, ridge, trailing, scale(color, .85));
-    triangle(mesh, trailing, ridge, tip, scale(color, .75));
+    const across = unit(cross(axis, [0,1,0]));
+    const rows = 10, cols = 4;
+    const points = [];
+    for (let row = 0; row <= rows; row++) {
+      const t = row / rows;
+      const span = width * (.16 + .86 * Math.sin(Math.PI*t)**.65) * (1-.27*t);
+      points[row] = [];
+      for (let col = 0; col <= cols; col++) {
+        const u = col / cols * 2 - 1;
+        const point = add(add(base, scale(axis,t)),scale(across,u*span));
+        point[1] += Math.sin(t*Math.PI)*.032 + (1-Math.abs(u))*.018 - Math.abs(u)*width*.17;
+        points[row][col] = point;
+        if (row && col) {
+          const tone = scale(color,.78+.20*(1-Math.abs(u))+.10*t);
+          triangle(mesh,points[row-1][col-1],points[row][col-1],point,tone);
+          triangle(mesh,points[row-1][col-1],point,points[row-1][col],tone);
+        }
+      }
+    }
   }
 
   function buildForest() {
@@ -314,6 +401,8 @@
       const top=-10-random()*6;
       const radius=2.2+random()*3.7;
       tube(mesh,[[x,-24,z],[x+.4,top-1,z]],.19,[.18,.12,.067],5);
+      oval(mesh,[x,top-3.7,z],[radius*1.15,radius*.85,radius*1.15],[.085,.23,.073],6,10);
+      oval(mesh,[x+.7,top-6.0,z+.5],[radius*1.05,radius*.85,radius],[.065,.18,.061],6,10);
       for(let cluster=0;cluster<4;cluster++){
         const angle=cluster*Math.PI*.5+index;
         const color=[.08+random()*.09,.21+random()*.15,.065+random()*.045];
@@ -324,40 +413,117 @@
     return mesh;
   }
 
+
   function buildMacaw() {
-    const body = [], left = [], right = [];
-    const blue = [.047,.245,.57];
-    const cobalt = [.035,.30,.69];
-    const navy = [.025,.093,.28];
-    const yellow = [.96,.64,.087];
-    oval(body, [0,0,0], [.21,.205,.54], blue,12,20);
-    oval(body, [0,-.10,.17], [.17,.15,.37], yellow,10,18);
-    oval(body, [0,.085,.36], [.169,.188,.235], cobalt,12,20);
-    oval(body, [0,.013,.54], [.118,.133,.135], [.085,.08,.092]);
-    oval(body, [0,-.051,.594], [.083,.092,.089], [.044,.044,.062]);
-    for (const s of [-1,1]) {
-      oval(body, [s*.088,.004,.494], [.053,.056,.106], yellow);
-      oval(body, [s*.147,.133,.431], [.032,.046,.052], yellow, 6, 9);
-      oval(body, [s*.165,.139,.444], [.02,.033,.034], [.032,.022,.022], 6, 9);
-      oval(body, [s*.18,.150,.453], [.009,.011,.01], [.94,.91,.74], 4, 6);
-      oval(body, [s*.096,-.145,-.19], [.06,.055,.12], [.067,.068,.084], 5, 8);
-    }
-    for (let j = -3; j <= 3; j++) {
-      feather(body, [j*.029,-.064,-.35], [j*.065,-.19,-1.43+Math.abs(j)*.11], .068, scale([.05,.37,.29], .94 + j*.038));
-    }
-    for (const s of [-1,1]) {
-      const wing = s < 0 ? left : right;
-      oval(wing,[s*.45,.016,-.015],[.51,.083,.265], cobalt, 6, 12, s*.19);
-      for (let j = 0; j < 10; j++) {
-        const x = .22 + j*.111;
-        const extension = .21 + .59*(j/9)**2;
-        feather(wing, [s*x,.04,.13-j*.006], [s*(x+extension),-.095,-.69+j*.058], .10, scale(blue, 1.07+j*.028));
-        feather(wing, [s*x,.015,-.08], [s*(x+extension*.95),-.15,-.80+j*.053], .088, scale(navy, .8+j*.071));
-        if (j < 8) feather(wing, [s*(x-.035),.081,.157], [s*(x+.12),.032,-.29], .073, scale(cobalt, .95+j*.035));
+    const body=[],tail=[],left=[],right=[],leftOuter=[],rightOuter=[],leftTip=[],rightTip=[];
+    const blue=[.045,.30,.66], cobalt=[.045,.38,.73], navy=[.022,.11,.30];
+    const yellow=[.98,.64,.075], black=[.027,.032,.038], white=[.88,.89,.83];
+    oval(body,[0,-.035,.015],[.222,.258,.54],yellow,15,24);
+    oval(body,[0,.113,-.07],[.216,.186,.52],blue,14,24);
+    oval(body,[0,.105,.35],[.153,.196,.27],yellow,14,22);
+    oval(body,[0,.251,.43],[.181,.185,.214],cobalt,15,24);
+    oval(body,[0,.314,.528],[.158,.105,.135],[.22,.40,.12],12,22);
+    oval(body,[0,.085,.51],[.119,.067,.12],black,10,18);
+    // Upper mandible curves downward to a tapered hook.
+    tube(body,[[0,.256,.576],[0,.25,.658],[0,.211,.72],[0,.15,.741],[0,.096,.717],[0,.07,.681]],
+      t => .087*(1-t)**.63+.003,black,16);
+    oval(body,[0,.098,.623],[.067,.047,.075],black,12,18);
+    for (const side of [-1,1]) {
+      oval(body,[side*.147,.245,.491],[.045,.10,.117],white,12,20);
+      for (let line=0;line<5;line++) {
+        const y=.184+line*.019;
+        tube(body,[[side*.179,y,.553],[side*.190,y+.005,.518],[side*.190,y+.014,.478],[side*.177,y+.027,.447]],
+          .0018,[.075,.078,.074],4);
+      }
+      oval(body,[side*.182,.285,.522],[.014,.020,.022],[.56,.48,.27],10,14);
+      oval(body,[side*.192,.287,.528],[.009,.013,.015],black,10,14);
+      oval(body,[side*.199,.294,.532],[.003,.004,.004],white,6,8);
+      oval(body,[side*.087,-.235,-.20],[.041,.038,.097],[.20,.20,.21],9,14);
+      for(let toe=0;toe<3;toe++) {
+        const x=side*.085+(toe-1)*.018;
+        tube(body,[[x,-.252,-.16],[x,-.268,-.205],[x,-.254,-.25]],.009,[.16,.16,.17],5);
       }
     }
-    return {body,left,right};
+    // Small overlapping coverts follow the dorsal volume.
+    for(let row=0;row<7;row++){
+      for(let col=-3;col<=3;col++){
+        const x=col*.05,z=.29-row*.105;
+        const y=.12+.177*Math.sqrt(Math.max(.03,1-(x/.23)**2-((z+.07)/.56)**2));
+        feather(body,[x,y,z],[x*1.07,y-.018,z-.148],.042,scale(cobalt,.83+.05*((row+col+9)%3)));
+      }
+    }
+    for(let j=-4;j<=4;j++){
+      const length=1.59-Math.abs(j)*.15;
+      feather(tail,[j*.025,.015,-.37],[j*.038,-.51,-length],.063,j%2?blue:cobalt);
+      feather(tail,[j*.024,-.015,-.37],[j*.036,-.534,-length+.04],.057,scale(yellow,.68));
+    }
+    for(const side of [-1,1]){
+      const inner=side<0?left:right,outer=side<0?leftOuter:rightOuter,tips=side<0?leftTip:rightTip;
+      oval(inner,[side*.34,.052,.03],[.35,.073,.225],blue,10,20);
+      oval(outer,[side*.81,.035,.012],[.26,.049,.15],blue,9,18);
+      for(let i=0;i<9;i++){
+        const x=.20+i*.085;
+        const group=i<5?inner:outer;
+        feather(group,[side*x,.035,.16-i*.01],[side*(x+.10),-.045,-.48+i*.012],.084,blue);
+        feather(group,[side*x,-.027,.10],[side*(x+.09),-.075,-.43+i*.012],.069,scale(yellow,.78));
+      }
+      for(let i=0;i<10;i++){
+        const x=.88+i*.033;
+        feather(tips,[side*x,.013,.10-i*.012],[side*(1.82-i*.069),-.086,-.21-i*.052],.081,scale(blue,1.08-i*.026));
+      }
+      for(let row=0;row<4;row++){
+        for(let col=0;col<13;col++){
+          const x=.18+col*.064,z=.20-row*.077;
+          feather(col<7?inner:outer,[side*x,.115-row*.009,z],[side*(x+.072),.081-row*.01,z-.18],.046,
+            scale(cobalt,.84+((col+row)%3)*.065));
+        }
+      }
+    }
+    return {body,tail,left,right,leftOuter,rightOuter,leftTip,rightTip};
   }
+
+  window.createArarasArrivalBird = THREE => {
+    const meshes=buildMacaw(),group=new THREE.Group(),parts={};
+    for(const [name,data] of Object.entries(meshes)){
+      const position=[],normal=[],color=[];
+      for(let i=0;i<data.length;i+=9){
+        position.push(...data.slice(i,i+3));
+        normal.push(...data.slice(i+3,i+6));
+        const tone=new THREE.Color(...data.slice(i+6,i+9)).convertSRGBToLinear();
+        color.push(tone.r,tone.g,tone.b);
+      }
+      const geometry=new THREE.BufferGeometry();
+      geometry.setAttribute('position',new THREE.Float32BufferAttribute(position,3));
+      geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normal,3));
+      geometry.setAttribute('color',new THREE.Float32BufferAttribute(color,3));
+      const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({
+        vertexColors:true,side:THREE.DoubleSide,roughness:.73
+      }));
+      mesh.castShadow=true;group.add(mesh);parts[name]=mesh;
+      mesh.matrixAutoUpdate=false;
+    }
+    const transform=(side,angle,x,yaw=0)=>{
+      const rotation=new THREE.Matrix4().makeRotationZ(angle);
+      rotation.multiply(new THREE.Matrix4().makeRotationY(yaw));
+      return new THREE.Matrix4().makeTranslation(side*x,0,0).multiply(rotation)
+        .multiply(new THREE.Matrix4().makeTranslation(-side*x,0,0));
+    };
+    group.userData.animate=(time,landing)=>{
+      const amount=1-landing,stroke=Math.sin(time*6.1+.45);
+      for(const side of [-1,1]){
+        const prefix=side<0?'left':'right';
+        const fold=-side*landing*.08;
+        const shoulder=transform(side,side*stroke*.34*amount+fold,.17,side*landing*1.30);
+        const elbow=shoulder.clone().multiply(transform(side,side*.12*Math.sin(time*6.1-.4)*amount,.66,side*.22*Math.max(0,Math.cos(time*6.1))*amount));
+        const wrist=elbow.clone().multiply(transform(side,side*.13*Math.sin(time*6.1-1)*amount,.98));
+        parts[prefix].matrix.copy(shoulder);
+        parts[prefix+'Outer'].matrix.copy(elbow);
+        parts[prefix+'Tip'].matrix.copy(wrist);
+      }
+      parts.tail.matrix.makeRotationX(.03*Math.sin(time*2.2)*amount);
+    };
+    return group;
+  };
 
   function program(gl, vert, frag, attributes, uniforms) {
     const linked = gl.createProgram();
@@ -404,7 +570,19 @@
     }));
     const bird = Object.fromEntries(Object.entries(birdGeometry).map(([name,mesh]) => [name,buffer(mesh,9)]));
     const forest=buffer(buildForest(),9);
-    const pivot = (s, a) => angleZ(a,s*.16*(1-Math.cos(a)),-s*.16*Math.sin(a),0);
+    const multiply=(a,b)=>{
+      const out=new Float32Array(16);
+      for(let col=0;col<4;col++)for(let row=0;row<4;row++)
+        for(let k=0;k<4;k++)out[col*4+row]+=a[k*4+row]*b[col*4+k];
+      return out;
+    };
+    const joint=(side,angle,x,z=0,yaw=0)=>{
+      const rotation=birdPose(angle,0,yaw,0,0,0);
+      const pivot=[side*x,0,z];
+      for(let row=0;row<3;row++)rotation[12+row]=pivot[row]-
+        (rotation[row]*pivot[0]+rotation[4+row]*pivot[1]+rotation[8+row]*pivot[2]);
+      return rotation;
+    };
     const draw = ({id,count}) => {
       gl.bindBuffer(gl.ARRAY_BUFFER,id);
       [world.aPoint,world.aNormal,world.aColor].forEach((a,i) => {
@@ -460,7 +638,7 @@
         }
       }
       gl.uniform1f(world.uPlant,0);
-      if(z>70){
+      if(z>116){
         gl.uniform1f(world.uWood,0);
         gl.uniform1f(world.uShine,.025);
         draw(forest);
@@ -468,20 +646,30 @@
       const entrance = ease((t-.25)/2.5);
       const settled = ease((t-2.2)/1.45);
       const sx = (aspect < 1 ? -3.4 : -5.9) * (1-entrance) + Math.sin(t*1.3+p*7)*.36*settled + .63*Math.sin(entrance*Math.PI);
-      const sy = blend(-.69,.93,entrance) + .13*Math.sin(t*3.4)*settled;
-      const sz = blend(2.85,7.4,entrance) + (aspect < 1 ? 2.1 : .9)*settled;
+      const sy = blend(-.69,.61,entrance) + .13*Math.sin(t*3.4)*settled;
+      const sz = blend(2.85,6.2,entrance) + (aspect < 1 ? Math.max(2.1,3.7/aspect-6.2) : .9)*settled;
       const roll = reduced ? 0 : -.32*Math.sin(entrance*Math.PI) + .10*Math.sin(t*1.7+p*9)*settled;
       const flap = reduced ? .12 : (Math.sin(t*6.1 + .45)*.44+Math.sin(t*12.2)*.075)*(1.-.35*settled);
       gl.uniform1f(world.uBird,1);
       gl.uniform1f(world.uShine,.10);
       gl.uniform1f(world.uWood,0);
-      const yaw = reduced ? 0 : .99*(1-entrance) + .09*Math.sin(t*1.3+p*7)*settled;
+      const yaw = reduced ? 0 : .99*(1-entrance) + .16*Math.sin(t*.8+p*7)*settled;
       gl.uniformMatrix4fv(world.uModel,false,birdPose(roll,-.14-.18*(1-entrance),yaw,sx,sy,sz+z));
       draw(bird.body);
-      gl.uniformMatrix4fv(world.uWing,false,pivot(-1,-flap));
-      draw(bird.left);
-      gl.uniformMatrix4fv(world.uWing,false,pivot(1,flap));
-      draw(bird.right);
+      gl.uniformMatrix4fv(world.uWing,false,joint(1,.025*Math.sin(t*3.2),0,-.37,.035*Math.sin(t*1.7)));
+      draw(bird.tail);
+      const recovery=reduced?0:Math.max(0,Math.cos(t*6.1+.45));
+      for(const side of [-1,1]){
+        const prefix=side<0?'left':'right';
+        const shoulder=joint(side,side*flap,.17);
+        const elbow=multiply(shoulder,joint(side,side*.13*Math.sin(t*6.1-.4),.66,0,side*.24*recovery));
+        const wrist=multiply(elbow,joint(side,side*.14*Math.sin(t*6.1-1.0),.98,0,side*.19*recovery));
+        gl.uniformMatrix4fv(world.uWing,false,shoulder);draw(bird[prefix]);
+        gl.uniformMatrix4fv(world.uWing,false,elbow);draw(bird[prefix+'Outer']);
+        gl.uniformMatrix4fv(world.uWing,false,wrist);draw(bird[prefix+'Tip']);
+      }
     };
   };
 })();
+
+

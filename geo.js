@@ -1,4 +1,26 @@
 (() => {
+  // OSM requires an HTTP page referrer. A file URL cannot provide one.
+  if (location.protocol === 'file:') {
+    const preview = 'http://127.0.0.1:8765/';
+    const hint = document.getElementById('geo-hint');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    fetch(preview + '__araras_preview__', {signal: controller.signal})
+      .then(response => {
+        if (!response.ok) throw new Error('Preview unavailable');
+        return response.json();
+      })
+      .then(result => {
+        if (result.project !== 'araras-local') throw new Error('Unexpected preview');
+        location.replace(preview + location.search + location.hash);
+      })
+      .catch(() => {
+        hint.replaceChildren(document.createTextNode('Abra a prévia pelo arquivo Abrir-Araras.ps1 para carregar o mapa.'));
+      })
+      .finally(() => clearTimeout(timeout));
+    return;
+  }
+
   const section = document.querySelector('.geo-journey');
   const stage = section.querySelector('.geo-stage');
   const canvas = section.querySelector('#geo-globe');
@@ -164,11 +186,23 @@
     if(!tiles.has(key)){
       if(tiles.size>400)tiles.delete(tiles.keys().next().value);
       const image=new Image();
+      image.decoding='async';
+      image.referrerPolicy='strict-origin-when-cross-origin';
+      image.retryAt=0;image.attempt=0;
+      image.onload=()=>{image.retryAt=0;image.attempt=0;};
+      image.onerror=()=>{image.retryAt=performance.now()+Math.min(30000,1500*2**image.attempt++);};
       image.src='https://tile.openstreetmap.org/'+key+'.png';
       tiles.set(key,image);
     }
-    return tiles.get(key);
+    const image=tiles.get(key);
+    if(image.retryAt && performance.now()>image.retryAt && navigator.onLine){
+      image.retryAt=0;image.src='https://tile.openstreetmap.org/'+key+'.png';
+    }
+    return image;
   }
+  addEventListener('online',()=>{
+    for(const [key,image] of tiles)if(!image.naturalWidth)tiles.delete(key);
+  });
   function mercator(lon,lat){return [(lon+180)/360,(1-Math.asinh(Math.tan(lat*rad))/Math.PI)/2];}
   function cameraAt(p){
     const i=stops.findIndex(stop=>stop[0]>=p);
