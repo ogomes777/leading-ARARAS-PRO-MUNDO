@@ -839,7 +839,9 @@
       }
       const p = progress/100;
       const t = reduced ? 3 : elapsed;
-      const x = (reduced ? 0 : .24*Math.sin(p*9) + .035*Math.sin(t*1.6))+(window.ARARAS_FREE?.x||0);
+      // Voo vivo depois do túnel: curvas amplas, subidas e descidas; câmera segue com atraso
+      const dyn = reduced ? 0 : ease((p-.43)/.05)*(1-ease((p-.87)/.03));
+      const x = (reduced ? 0 : .24*Math.sin(p*9) + .035*Math.sin(t*1.6))+(window.ARARAS_FREE?.x||0)+dyn*1.4*Math.sin(t*.33-.7);
       const descent=ease((p-.60)/.14);
       const y = (reduced ? 0 : .14*Math.sin(p*8) + .035*Math.sin(t*1.18))+(window.ARARAS_FREE?.y||0)-descent*19.;
       const z = p<.42 ? p/.42*150. : 150.+(p-.42)/.58*900.;
@@ -896,10 +898,10 @@
         gl.disable(gl.BLEND);gl.enable(gl.DEPTH_TEST);gl.useProgram(world.linked);}
       const entrance = ease((t-.25)/2.5);
       const settled = ease((t-2.2)/1.45);
-      const sx = (aspect < 1 ? -3.4 : -5.9) * (1-entrance) + Math.sin(t*1.3+p*7)*.36*settled + .63*Math.sin(entrance*Math.PI);
-      const sy = blend(-.69,.61,entrance) + .13*Math.sin(t*3.4)*settled;
+      const sx = (aspect < 1 ? -3.4 : -5.9) * (1-entrance) + Math.sin(t*1.3+p*7)*.36*settled*(1-dyn) + .63*Math.sin(entrance*Math.PI) + dyn*1.5*Math.sin(t*.33);
+      const sy = blend(-.69,.61,entrance) + .13*Math.sin(t*3.4)*settled + dyn*.55*Math.sin(t*.51+1.);
       const sz = blend(2.85,6.2,entrance) + (aspect < 1 ? Math.max(2.1,3.7/aspect-6.2) : .9)*settled;
-      const roll = reduced ? 0 : -.32*Math.sin(entrance*Math.PI) + .10*Math.sin(t*1.7+p*9)*settled;
+      const roll = reduced ? 0 : -.32*Math.sin(entrance*Math.PI) + .10*Math.sin(t*1.7+p*9)*settled*(1-dyn) - dyn*.6*Math.cos(t*.33);
       const flap = reduced ? .12 : (Math.sin(t*6.1 + .45)*.44+Math.sin(t*12.2)*.075)*(1.-.35*settled);
       gl.uniform1f(world.uBird,1);
       gl.uniform1f(world.uShine,.10);
