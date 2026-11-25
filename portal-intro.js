@@ -90,7 +90,7 @@
     const elapsed=(now-start)/1000;
     // The open-sky leg has a minimum cinematic duration before approach.
     if(!reduce.matches&&flight<100){
-      const speed=flight>=60&&flight<84?1.6:elapsed<2.5?5.8:flight>=84?2.5:1.1;
+      const speed=elapsed<2.5?5.8:flight>=88?.85:1.0; // percurso: túnel, céu, descida, floresta e chegada (~105 s)
       setFlight(Math.min(100,flight+dt*speed));
     }
     shown=reduce.matches?flight:shown+(flight-shown)*(1-Math.exp(-7*dt));
