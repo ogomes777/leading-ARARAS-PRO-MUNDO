@@ -380,3 +380,7 @@ body:has(#flightDialog[open]) { overflow: hidden; }
 .portal-opening-poster {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;}
 .portal-intro #portalIntroVideo {position:relative;opacity:0;}
 .portal-intro[data-frame-ready] #portalIntroVideo {opacity:1;}
+
+/* Araras World dentro da experiência */
+#flightDialog.game-on .flight-scroll,#flightDialog.game-on .flight-story,#flightDialog.game-on #vineScene{display:none!important}
+#flightDialog.game-on .flight-top{z-index:20}

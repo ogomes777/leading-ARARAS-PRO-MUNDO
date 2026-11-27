@@ -54,7 +54,10 @@ const G={phase:'tunnel',t:0,rail:0,railV:4,lat:new THREE.Vector2(),
   pos:new THREE.Vector3().copy(WORLD.tunnelStart).add(new THREE.Vector3(0,0,-8)),yaw:0,pitch:0,roll:0,speed:22,
   flap:0,rollSpin:0,rollDir:0,boostT:0,boostCD:0,mode:'story',
   powers:{roll:false,boost:false,turbo:false,magnet:false,wind:false},mem:0,lvl:0,score:0,inWind:false,memT:0,items:{pena:0,uva:0,vinil:0,canastra:0},rings:0,landing:null,orbit:{yaw:0,pitch:0,tYaw:0,tPitch:0,rel:0,vy:0,vp:0,drag:false}};
-window.G=G;window.DOOR=doorWorld;window.tryLand=tryLand;window.SNAP=()=>{camVel&&camVel.set(0,0,0);forward(G.yaw,0);camPos.copy(G.pos).addScaledVector(fwd,-10).add(new THREE.Vector3(0,3,0));camLook.copy(G.pos);};
+window.G=G;
+const EMBED=/[?&]embed=1/.test(location.search);
+if(EMBED){document.body.classList.add('embed');window.PAUSED=true;addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.araras==='start'){window.PAUSED=false;}});
+  setTimeout(()=>{try{if(window.parent===window)window.PAUSED=false;}catch(_){}},0);}window.DOOR=doorWorld;window.tryLand=tryLand;window.SNAP=()=>{camVel&&camVel.set(0,0,0);forward(G.yaw,0);camPos.copy(G.pos).addScaledVector(fwd,-10).add(new THREE.Vector3(0,3,0));camLook.copy(G.pos);};
 
 // ---------- entrada: teclado, mouse, touch ----------
 const key={};

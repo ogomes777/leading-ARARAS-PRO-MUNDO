@@ -101,9 +101,27 @@
   function resumeDraw(){
     if(!frame&&start!==null&&dialog.open&&!document.hidden){last=0;frame=requestAnimationFrame(draw);}
   }
+  // ---------- Araras World: o voo vira jogo dentro da experiência ----------
+  let game=null;
+  const coarse=matchMedia('(pointer: coarse)');
+  function fitGame(){if(!game)return;const portrait=coarse.matches&&innerHeight>innerWidth;
+    game.style.cssText=portrait?'position:fixed;left:50%;top:50%;width:100vh;height:100vw;width:100dvh;height:100dvw;transform:translate(-50%,-50%) rotate(90deg);border:0;z-index:4;opacity:'+game.style.opacity
+      :'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:4;opacity:'+game.style.opacity;}
+  function loadGame(){if(game)return;game=document.createElement('iframe');game.title='Araras World';game.allow='fullscreen; autoplay';game.src='assets/jogo/?embed=1&v=2';
+    game.style.opacity='0';game.style.pointerEvents='none';layer.appendChild(game);fitGame();}
+  function landscape(){if(!coarse.matches)return;const el=document.documentElement;
+    (el.requestFullscreen?el.requestFullscreen({navigationUI:'hide'}):Promise.reject()).then(()=>screen.orientation?.lock?.('landscape')).catch(()=>{});}
+  addEventListener('resize',fitGame);screen.orientation?.addEventListener?.('change',fitGame);
+  function showGame(){if(!game)loadGame();dialog.classList.add('game-on');game.style.transition='opacity 1.2s';game.style.opacity='1';game.style.pointerEvents='auto';fitGame();const go=()=>{try{game.contentWindow.postMessage({araras:'start'},location.origin);}catch(e){}};go();game.addEventListener('load',go,{once:true});setTimeout(()=>game?.focus(),300);}
+  function endGame(){if(game){game.remove();game=null;}dialog.classList.remove('game-on');
+    if(document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});screen.orientation?.unlock?.();}
   function handoff(){
     if(transitioning||!dialog.open)return;
     transitioning=true;
+    showGame();
+    layer.inert=false;intro.classList.add('dissolving');
+    timer=setTimeout(()=>{if(!dialog.open)return;video.pause();intro.hidden=true;opening=false;dialog.classList.remove('showing-portal');},reduce.matches?0:1250);
+    return;
     dialog.dispatchEvent(new Event('flighttakeoff'));
     if(!renderer){
       intro.style.setProperty('--video-zoom','1.06');
@@ -128,7 +146,7 @@
   }
   trigger.onclick=()=>{
     if(dialog.open)return;
-    prepare();
+    prepare();landscape();loadGame();
     const token=++session;
     opening=true;transitioning=false;shown=0;start=null;skyStart=null;
     setFlight(0);
@@ -171,6 +189,7 @@
     if(['ArrowUp','PageUp'].includes(event.key)){event.preventDefault();setFlight(flight-5);}
   });
   dialog.addEventListener('close',()=>{
+    endGame();
     session++;clearTimeout(timer);cancelAnimationFrame(frame);frame=0;start=null;
     opening=false;transitioning=false;
     video.pause();intro.hidden=true;dialog.classList.remove('showing-portal');
