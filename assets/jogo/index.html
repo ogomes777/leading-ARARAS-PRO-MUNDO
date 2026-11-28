@@ -15,7 +15,7 @@ html,body{height:100%;margin:0;background:#1a1626;overflow:hidden;font-family:Ar
 #view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 #veil{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 50% 50%,rgba(255,236,236,.95),rgba(236,200,214,.92))}
 .glass{background:rgba(14,18,34,.30);border:1px solid rgba(246,238,220,.22);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-#cap{position:fixed;left:50%;top:calc(22px + env(safe-area-inset-top,0px));transform:translateX(-50%);font:400 clamp(24px,3.2vw,36px)/1.2 Allura,cursive;color:#e8b323;text-shadow:0 0 14px rgba(232,179,35,.55),0 0 32px rgba(232,179,35,.25),0 1px 8px rgba(0,0,0,.45);opacity:0;transition:opacity 1s;pointer-events:none;text-align:center;width:min(760px,calc(100% - 300px))}
+#cap{position:fixed;left:50%;top:calc(22px + env(safe-area-inset-top,0px));transform:translateX(-50%);font:400 clamp(26px,3.4vw,40px)/1.2 Allura,cursive;color:#ffd257;text-shadow:0 0 2px rgba(60,30,0,.9),0 1px 3px rgba(40,20,0,.8),0 0 16px rgba(255,190,40,.75),0 0 38px rgba(255,170,30,.35);opacity:0;transition:opacity 1s;pointer-events:none;text-align:center;width:min(760px,calc(100% - 300px))}
 #cap.on{opacity:1}
 #mmWrap{position:fixed;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:grid;gap:4px;justify-items:center}
 #minimap{width:112px;height:112px;border-radius:50%;cursor:pointer}
@@ -118,6 +118,20 @@ body:not(.playing) #touch{display:none!important}
 #bigmapC{box-shadow:0 20px 60px rgba(0,0,0,.45),0 0 0 1px rgba(232,179,35,.3)}
 #minimap{box-shadow:0 0 0 2px rgba(232,179,35,.35),0 6px 20px rgba(0,0,0,.35)}
 body.embed #quest{top:calc(64px + env(safe-area-inset-top,0px))}
+.fscore{font-size:26px;-webkit-text-stroke:1px rgba(20,10,0,.55)}
+#quest{background:linear-gradient(160deg,rgba(8,16,36,.82),rgba(8,12,26,.7))!important}
+.pwrow{display:flex;gap:5px;flex-wrap:wrap}.pwr{font:800 11px Archivo;padding:4px 8px;border-radius:99px;background:linear-gradient(90deg,#3bc4ff,#7fe0ff);color:#06223a;box-shadow:0 0 12px rgba(127,224,255,.7)}
+#menu{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 40%,rgba(18,30,60,.35),rgba(6,8,20,.75));z-index:12;padding:16px}
+.mcard{width:min(440px,100%);border-radius:22px;padding:24px;display:grid;gap:14px;justify-items:center;text-align:center;background:linear-gradient(160deg,rgba(14,24,50,.85),rgba(8,12,28,.8))!important;border-color:rgba(232,179,35,.35)!important}
+.mlogo{width:84px;height:auto}.mcard h1{margin:0;font:900 26px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#ffd257;text-shadow:0 0 18px rgba(255,190,40,.5)}
+.mtag{margin:0;font:400 22px/1.2 Allura,cursive;color:#f6eedc}
+.mbtns{display:grid;gap:8px;width:100%}.mbtns button{font:800 13px Archivo;letter-spacing:.12em;text-transform:uppercase;color:var(--cream);border-radius:99px;padding:14px;cursor:pointer}
+#mPlay{background:linear-gradient(90deg,#e8b323,#ffd257);color:#10233a;border:0;box-shadow:0 0 24px rgba(232,179,35,.5);font-size:15px}
+.mload{width:100%;display:grid;gap:6px;font:600 11px Archivo;opacity:.85}.mload i{display:block;height:4px;border-radius:99px;background:linear-gradient(90deg,#e8b323 0%,#e8b323 var(--p,0%),rgba(255,255,255,.12) var(--p,0%));animation:ml 2.6s linear forwards}
+@keyframes ml{from{--p:0%;background:linear-gradient(90deg,#e8b323 0%,rgba(255,255,255,.12) 0%)}to{background:linear-gradient(90deg,#e8b323 100%,rgba(255,255,255,.12) 100%)}}
+.mload.done span::after{content:" pronto"}
+.sponsor{width:100%;border:1px dashed rgba(246,238,220,.3);border-radius:14px;padding:12px;display:grid;gap:4px}.sponsor small{font:800 9px Archivo;letter-spacing:.2em;text-transform:uppercase;opacity:.6}.sponsor div{font:700 13px Archivo;opacity:.8}
+@media (pointer:coarse) and (orientation:landscape){.mcard{padding:14px;gap:8px}.mlogo{width:48px}.sponsor{display:none}}
 </style>
 </head><body><canvas id="view"></canvas>
 <div id="veil"></div>
@@ -135,11 +149,15 @@ body.embed #quest{top:calc(64px + env(safe-area-inset-top,0px))}
 <div id="bigmap" hidden><canvas id="bigmapC" width="1024" height="1024"></canvas><div class="mz"><button id="mapZoomIn" class="glass">+</button><button id="mapZoomOut" class="glass">−</button></div><p>M ou toque fora para fechar · roda do mouse aproxima</p></div>
 <div id="quest" class="glass"><b>Lembranças <em id="memN">0/7</em></b><div class="mems" id="mems"></div><div id="mission"></div>
  <div class="items"><span class="it pe"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2c4 3 6 7 4 13l-4 7-4-7C6 9 8 5 12 2z"/></svg><em id="cPena">0</em></span><span class="it uv"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 4a3 3 0 1 1 0 .1M8 9a3 3 0 1 1 0 .1M16 9a3 3 0 1 1 0 .1M12 14a3 3 0 1 1 0 .1"/></svg><em id="cUva">0</em></span><span class="it vi"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg><em id="cVinil">0</em></span><span class="it qj"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M3 14l9-8 9 8v4H3z"/></svg><em id="cQueijo">0</em></span></div>
- <div class="row2"><span class="speed" id="lvl">Velocidade 1</span><span class="score">✦ <em id="score">0</em></span></div><div class="bar"><i id="lvlBar"></i></div><div class="powers"><span id="p_roll">Pirueta</span><span id="p_magnet">Ímã</span><span id="p_boost">Arrancada</span><span id="p_turbo">Mergulho turbo</span><span id="p_wind">Vento de casa</span></div></div>
+ <div id="pw" class="pwrow"></div><div class="row2"><span class="speed" id="lvl">Velocidade 1</span><span class="score">✦ <em id="score">0</em></span></div><div class="bar"><i id="lvlBar"></i></div><div class="powers"><span id="p_roll">Pirueta</span><span id="p_magnet">Ímã</span><span id="p_boost">Arrancada</span><span id="p_turbo">Mergulho turbo</span><span id="p_wind">Vento de casa</span></div></div>
 <svg id="arrow" viewBox="0 0 24 24" hidden><path d="M12 2 L20 20 L12 15 L4 20 Z" fill="#e8b323" stroke="#124c85" stroke-width="1.2" stroke-linejoin="round"/></svg>
 <div id="toast" class="glass"></div><div id="fx"></div><div id="unlock"></div>
 <div id="hintTunnel" class="hint glass">Role ou arraste para voar · <kbd>A</kbd><kbd>D</kbd> desviar</div>
 <div id="keys" class="glass" hidden><kbd>A</kbd><kbd>D</kbd> virar · <kbd>W</kbd><kbd>S</kbd> subir/descer · <kbd>Espaço</kbd> bater asas · <kbd>Shift</kbd> mergulhar · <kbd>Q</kbd><kbd>E</kbd> pirueta · <kbd>F</kbd> arrancada · <kbd>M</kbd> mapa · roda do mouse aproxima</div>
+<div id="menu" hidden><div class="mcard glass"><img src="logo.png" alt="Araras" class="mlogo"><h1>Araras World</h1><p class="mtag">A arara está sozinha no céu. Leve-a de volta para casa.</p>
+ <div class="mbtns"><button id="mPlay">Jogar</button><button id="mStory" class="glass">Continuar a história</button><button id="mSet" class="glass">Configurações</button></div>
+ <div id="menuLoad" class="mload"><i></i><span>Preparando o mundo…</span></div>
+ <div class="sponsor"><small>Patrocínio</small><div>Espaço para parceiro</div></div></div></div>
 <div id="choice" hidden><button id="cStory" class="glass">Continuar a história</button><button id="cPlay" class="glass">Jogar · ajude a arara a voltar para casa</button></div>
 <button id="toGame" class="glass">Assumir o voo</button>
 <div id="touch"><div id="joy" class="glass"><div id="knob"></div></div>
