@@ -132,12 +132,31 @@ body.embed #quest{top:calc(64px + env(safe-area-inset-top,0px))}
 .mload.done span::after{content:" pronto"}
 .sponsor{width:100%;border:1px dashed rgba(246,238,220,.3);border-radius:14px;padding:12px;display:grid;gap:4px}.sponsor small{font:800 9px Archivo;letter-spacing:.2em;text-transform:uppercase;opacity:.6}.sponsor div{font:700 13px Archivo;opacity:.8}
 @media (pointer:coarse) and (orientation:landscape){.mcard{padding:14px;gap:8px}.mlogo{width:48px}.sponsor{display:none}}
+#valBtn{position:fixed;left:calc(98px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:36px;height:36px;border-radius:50%;color:#ffd257;display:grid;place-items:center;cursor:pointer;padding:0;z-index:8}
+#values{position:fixed;left:max(10px,env(safe-area-inset-left,0px));top:calc(54px + env(safe-area-inset-top,0px));width:min(330px,calc(100% - 20px));max-height:calc(100% - 80px);overflow:auto;border-radius:14px;padding:12px 14px;z-index:9;background:linear-gradient(160deg,rgba(10,18,40,.9),rgba(8,12,28,.84))!important}
+#values h2{margin:0 0 8px;font:800 11px Archivo;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}#values ul{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+#values li{display:grid;grid-template-columns:12px 1fr;gap:2px 8px;align-items:center;font-size:12px}#values li i{width:10px;height:10px;border-radius:50%;grid-row:span 2}#values li b{font-weight:800}#values li span{opacity:.8;font-size:11px}
+#values p{margin:8px 0 0;font:600 11px Archivo;opacity:.7}
+.tabs{display:flex;gap:4px;background:rgba(255,255,255,.05);border-radius:99px;padding:3px}.tabs button{flex:1;font:800 11px Archivo;letter-spacing:.06em;color:var(--cream);background:none;border:0;border-radius:99px;padding:8px 6px;cursor:pointer}
+.tabs button.on{background:var(--gold);color:#10233a}.pane{display:none;gap:10px}.pane.on{display:grid}
 </style>
 </head><body><canvas id="view"></canvas>
 <div id="veil"></div>
 <div id="cap"></div>
 <button id="gear" class="glass" aria-label="Configurações"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
 <button id="helpBtn" class="glass" aria-label="Como jogar">?</button>
+<button id="valBtn" class="glass" aria-label="Valor das recompensas"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/></svg></button>
+<div id="values" class="glass" hidden><h2>Recompensas</h2><ul>
+<li><i style="background:#ffd34d"></i><b>Pena dourada</b><span>10 pts · a cada 8 penas: +velocidade</span></li>
+<li><i style="background:#f07ab8"></i><b>Cacho de uva</b><span>15 pts</span></li>
+<li><i style="background:#e8b323"></i><b>Disco de vinil</b><span>25 pts</span></li>
+<li><i style="background:#fff1a8"></i><b>Queijo Canastra</b><span>200 pts · libera o mergulho turbo</span></li>
+<li><i style="background:#fff6d0;box-shadow:0 0 8px #ffd257"></i><b>Lembrança</b><span>500 pts · uma arara companheira</span></li>
+<li><i style="background:#9be05a"></i><b>Anel de videira</b><span>50 · 100 · 150 · 200 · 250 pts em sequência</span></li>
+<li><i style="background:#9be05a;box-shadow:0 0 8px #9be05a"></i><b>Prova completa (5 anéis)</b><span>+400 · ×1,5 em menos de 20 s</span></li>
+<li><i style="background:#ffd34d"></i><b>Trilha completa</b><span>+150</span></li>
+<li><i style="background:#7fe0ff"></i><b>Cristal azul</b><span>ímã gigante 12 s · pontos ×2 12 s · turbo 6 s</span></li>
+</ul><p>Fácil ×0,8 · Normal ×1 · Difícil ×1,5</p></div>
 <div id="help" hidden><div class="helpCard glass"><h2>Como jogar</h2>
  <p class="story">A arara está sozinha no céu. Encontre as 7 lembranças douradas, colete penas para ficar mais rápida e leve-a de volta para casa. Ou apenas voe.</p>
  <div class="hgrid desk"><div><kbd>W</kbd><kbd>S</kbd><span>subir e descer</span></div><div><kbd>A</kbd><kbd>D</kbd><span>virar (ela inclina sozinha)</span></div><div><kbd>Espaço</kbd><span>bater asas e acelerar</span></div><div><kbd>Shift</kbd><span>mergulhar</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>pirueta (libera com 10 penas)</span></div><div><kbd>F</kbd><span>arrancada (libera com 5 arcos)</span></div><div><kbd>Mouse</kbd><span>arraste para olhar · roda aproxima</span></div><div><kbd>M</kbd><span>mapa</span></div><div><kbd>L</kbd><span>pousar perto do Araras</span></div><div><kbd>H</kbd><span>esta ajuda</span></div></div>
@@ -166,5 +185,5 @@ body.embed #quest{top:calc(64px + env(safe-area-inset-top,0px))}
 <div id="end" hidden><button id="again" class="glass">Voar de novo</button></div>
 <div id="loading">Carregando a arara MASTER 4K…</div>
 <script type="importmap">{"imports":{"three":"../vendor/three170/build/three.module.js","three/addons/":"../vendor/three170/examples/jsm/"}}</script>
-<script type="module" src="game.js?v=1"></script>
+<script type="module" src="game.js?v=1795849547"></script>
 </body></html>
